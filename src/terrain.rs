@@ -50,70 +50,60 @@ pub fn generate_terrain(
                 abs(height * noise_gen.get([px * noise_scale, py * noise_scale, altitude * 0.5])),
             );
             // Push some clockwise triangles (well, svg coord clockwise anyhoo).
-            triangles.push((
+            let mut tri1 = triangle_dz_decompose(&(
                 DVec3::new(x1, y1, z1),
-                DVec3::new(x2, y2, z2),
                 DVec3::new(x3, y3, z3),
-            ));
-            triangles.push((
+                DVec3::new(x2, y2, z2),
+            ), height/4., height, altitude, &noise_gen, noise_scale);
+            let mut tri2 = triangle_dz_decompose(&(
                 DVec3::new(x1, y1, z1),
                 DVec3::new(x3, y3, z3),
                 DVec3::new(x4, y4, z4),
-            ));
+            ), height/4., height, altitude, &noise_gen, noise_scale);
+            triangles.append(&mut tri1);
+            triangles.append(&mut tri2);
         }
     }
     triangles
 }
 
 
-pub fn triangle_slope_decompose(
+pub fn triangle_dz_decompose(
     triangle: &(DVec3, DVec3, DVec3),
     max_dz: f64,
+    height: f64,
+    altitude: f64,
+    noise_gen: &HybridMulti,
+    noise_scale: f64,
 ) -> Vec<(DVec3, DVec3, DVec3)> {
     // Just stupid brute force here..
     if abs(triangle.0.z - triangle.1.z) > max_dz {
         // println!("Splitting on line 0-1");
-        let mid = DVec3::new(
-            (triangle.0.x + triangle.1.x) / 2.,
-            (triangle.0.y + triangle.1.y) / 2.,
-            (triangle.0.z + triangle.1.z) / 2.,
-        );
+        let px = (triangle.0.x + triangle.1.x) / 2.;
+        let py = (triangle.0.y + triangle.1.y) / 2.;
+        let pz = abs(height * noise_gen.get([px * noise_scale, py * noise_scale, altitude * 0.5]));
+        let mid = DVec3::new(px, py, pz);
         let tri1 = (mid.clone(), triangle.1.clone(), triangle.2.clone());
         let mut tri2 = (mid, triangle.2.clone(), triangle.0.clone());
-        // println!("Pre decomposition of 0-1 is: {:?} and {:?}", &tri1, &tri2);
-        // let mut tri1_dec = triangle_slope_decompose(&tri1, max_dz);
-        // let mut tri2_dec = triangle_slope_decompose(&tri2, max_dz);
-
-        // tri1_dec.append(&mut tri2_dec);
-        // println!("Post decomposition of 0-1 is: {:?}", &tri1_dec);
-        // tri1_dec
         vec![tri1, tri2]
-    } else if abs(triangle.1.z - triangle.2.z) > max_dz {
+    }/* else if abs(triangle.1.z - triangle.2.z) > max_dz {
         // println!("Splitting on 1-2");
+        let px = (triangle.1.x + triangle.2.x) / 2.;
+        let py = (triangle.1.y + triangle.2.y) / 2.;
+        let pz = abs(height * noise_gen.get([px * noise_scale, py * noise_scale, altitude * 0.5]));
+        let mid = DVec3::new(px, py, pz);
         let tri1 = (
             triangle.0.clone(),
-            DVec3::new(
-                (triangle.1.x + triangle.2.x) / 2.,
-                (triangle.1.y + triangle.2.y) / 2.,
-                (triangle.1.z + triangle.2.z) / 2.,
-            ),
+            mid.clone(),
             triangle.2.clone(),
         );
         let mut tri2 = (
             triangle.1.clone(),
-            DVec3::new(
-                (triangle.1.x + triangle.2.x) / 2.,
-                (triangle.1.y + triangle.2.y) / 2.,
-                (triangle.1.z + triangle.2.z) / 2.,
-            ),
+            mid.clone(),
             triangle.0.clone(),
         );
-        // let mut tri1_dec = triangle_slope_decompose(&tri1, max_dz);
-        // let mut tri2_dec = triangle_slope_decompose(&tri2, max_dz);
-        // tri1_dec.append(&mut tri2_dec);
-        // tri1_dec
         vec![tri1, tri2]
-    } else {
+    }*/ else {
         // println!("Nope. S'OK!");
         vec![triangle.clone()]
     }
@@ -185,7 +175,7 @@ pub fn lines_from_terrain(triangles: &Vec<(DVec3, DVec3, DVec3)>, plane_z: f64) 
 
 #[cfg(test)]
 mod test {
-    use crate::{line_plane_intersections, triangle_slope_decompose};
+    use crate::{line_plane_intersections, triangle_dz_decompose};
     use nannou::prelude::DVec3;
 
     #[test]
@@ -207,12 +197,12 @@ mod test {
             DVec3::new(10., 5., 5.),
             DVec3::new(10., -5., -5.),
         );
-        println!("TRI OUT: {:?}", triangle_slope_decompose(&tri, 2.));
+        println!("TRI OUT: {:?}", triangle_dz_decompose(&tri, 2.));
         let tri = (
             DVec3::new(0., 0., 0.),
             DVec3::new(10., 5., 15.),
             DVec3::new(10., -5., -15.),
         );
-        println!("TRI OUT: {:?}", triangle_slope_decompose(&tri, 2.));
+        println!("TRI OUT: {:?}", triangle_dz_decompose(&tri, 2.));
     }
 }
